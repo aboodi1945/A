@@ -3,210 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تطبيق الدايت الخاص بي</title>
+    <title>صحتي PRO | المنصة الشاملة</title>
     
-    <!-- استدعاء مكتبة التصميم Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- استدعاء مكتبات React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- استدعاء الأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-        body { font-family: 'Cairo', sans-serif; background-color: #f9fafb; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f4f9; -webkit-tap-highlight-color: transparent; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .chat-bubble { border-radius: 20px; padding: 12px 16px; max-width: 85%; font-size: 0.9rem; line-height: 1.5; }
+        .bot-msg { background-color: #f0fdf4; color: #166534; border-bottom-right-radius: 4px; border: 1px solid #dcfce7; }
+        .user-msg { background-color: #111827; color: white; border-bottom-left-radius: 4px; margin-left: auto; }
+        .scanner-line { width: 100%; height: 2px; background: #10b981; position: absolute; top: 0; left: 0; animation: scan 2s infinite linear; box-shadow: 0 0 15px #10b981; }
+        @keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo } = React;
+        const { useState, useMemo, useEffect, useRef } = React;
 
-        // 1. مكون شريط التقدم
+        // --- قاعدة بيانات المقالات ---
+        const ALL_ARTICLES = [
+            { title: "قاعدة 80/20 في التغذية", desc: "تناول طعاماً صحياً بنسبة 80%، واترك 20% للأطعمة التي تحبها لتجنب الحرمان.", image: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80", icon: "fa-scale-balanced" },
+            { title: "الألياف وسكر الدم", desc: "الخضروات تبطئ امتصاص السكر وتمنع تخزين الدهون المباشر وتشعرك بالشبع.", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80", icon: "fa-leaf" },
+            { title: "النوم: مصنع الحرق", desc: "النوم 8 ساعات ينظم هرمون الشبع ويقلل الجوع. السهر يعرقل الأيض 20%.", image: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=600&q=80", icon: "fa-moon" },
+            { title: "التأثير الحراري", desc: "الجسم يحرق 30% من سعرات البروتين في هضمه فقط! البروتين يحرق السعرات.", image: "https://images.unsplash.com/photo-1582515073490-39981397c445?auto=format&fit=crop&w=600&q=80", icon: "fa-fire" },
+            { title: "أسطورة الكربوهيدرات", desc: "النشويات لا تسبب السمنة، بل الإفراط فيها. اختر الشوفان والبطاطا.", image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=600&q=80", icon: "fa-wheat-awn" },
+            { title: "أهمية المقاومة", desc: "الحديد يبني عضلات، وكل كيلو عضل إضافي يحرق سعرات وأنت نائم!", image: "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=600&q=80", icon: "fa-dumbbell" },
+            { title: "العطش الوهمي", desc: "المخ يترجم العطش كجوع أحياناً. اشرب ماء وانتظر 15 دقيقة قبل الأكل.", image: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=600&q=80", icon: "fa-glass-water" }
+        ];
+
+        // الوجبات الافتراضية
+        const DEFAULT_QUICK_MEALS = [
+            { id: '1', name: 'بيض مسلوق (حبتين)', cal: 155, p: 12, c: 1, f: 11, img: "https://images.unsplash.com/photo-1582562124508-20235ed95a73?auto=format&fit=crop&w=150&q=80" },
+            { id: '2', name: 'صدر دجاج مشوي', cal: 165, p: 31, c: 0, f: 3, img: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=150&q=80" },
+            { id: '3', name: 'أرز أبيض (100جم)', cal: 130, p: 2, c: 28, f: 0, img: "https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?auto=format&fit=crop&w=150&q=80" },
+            { id: '4', name: 'شوفان (50جم)', cal: 190, p: 6, c: 33, f: 3, img: "https://images.unsplash.com/photo-1517673132405-a56a62b18caf?auto=format&fit=crop&w=150&q=80" }
+        ];
+
+        // --- هوك (Hook) لحفظ البيانات في المتصفح ---
+        function useLocalStorage(key, initialValue) {
+            const [storedValue, setStoredValue] = useState(() => {
+                try {
+                    const item = window.localStorage.getItem(key);
+                    return item ? JSON.parse(item) : initialValue;
+                } catch (error) {
+                    console.error(error);
+                    return initialValue;
+                }
+            });
+            useEffect(() => {
+                window.localStorage.setItem(key, JSON.stringify(storedValue));
+            }, [key, storedValue]);
+            return [storedValue, setStoredValue];
+        }
+
+        // --- المكونات ---
         const ProgressBar = ({ label, consumed, total, colorClass }) => {
             const percentage = total > 0 ? Math.min(100, (consumed / total) * 100) : 0;
             return (
                 <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1 text-gray-700 font-medium">
+                    <div className="flex justify-between text-xs mb-1 text-gray-500 font-bold tracking-wide">
                         <span>{label}</span>
-                        <span>{consumed} / {total} جم</span>
+                        <span>{Math.round(consumed)} / {Math.round(total)}g</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className={`h-2.5 rounded-full ${colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden shadow-inner">
+                        <div className={`h-2 rounded-full ${colorClass} transition-all duration-700 ease-out`} style={{ width: `${percentage}%` }}></div>
                     </div>
                 </div>
             );
         };
 
-        // 2. مكون الملف الشخصي (مستقل لمنع اختفاء الكيبورد)
-        const ProfileView = ({ profile, setProfile, onSubmit }) => (
-            <div className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 animate-fade-in">
-                <div className="text-center mb-6">
-                    <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">
-                        <i className="fa-solid fa-user"></i>
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-800">بياناتك الشخصية</h2>
-                </div>
-                <form onSubmit={onSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الجنس</label>
-                            <select className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}>
-                                <option value="male">ذكر</option>
-                                <option value="female">أنثى</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">العمر</label>
-                            <input type="number" required className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={profile.age} onChange={e => setProfile({...profile, age: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الوزن (كجم)</label>
-                            <input type="number" required className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={profile.weight} onChange={e => setProfile({...profile, weight: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الطول (سم)</label>
-                            <input type="number" required className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={profile.height} onChange={e => setProfile({...profile, height: e.target.value})} />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">مستوى النشاط</label>
-                        <select className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={profile.activity} onChange={e => setProfile({...profile, activity: e.target.value})}>
-                            <option value="1.2">خامل (عمل مكتبي)</option>
-                            <option value="1.375">نشاط خفيف</option>
-                            <option value="1.55">نشاط متوسط</option>
-                            <option value="1.725">نشاط عالي</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">الهدف</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {['lose', 'maintain', 'gain'].map(g => (
-                                <button type="button" key={g} onClick={() => setProfile({...profile, goal: g})} className={`py-3 rounded-xl text-sm font-medium transition-all ${profile.goal === g ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
-                                    {g === 'lose' ? 'خسارة وزن' : g === 'maintain' ? 'محافظة' : 'زيادة وزن'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <button type="submit" className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
-                        احسب احتياجي <i className="fa-solid fa-circle-check"></i>
-                    </button>
-                </form>
-            </div>
-        );
+        const DashboardView = ({ dailyNeeds, consumed, remaining, profile, water, setWater }) => {
+            // نصيحة اليوم المتغيرة بناء على التاريخ
+            const tipOfTheDay = useMemo(() => {
+                const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+                return ALL_ARTICLES[dayOfYear % ALL_ARTICLES.length];
+            }, []);
 
-        // 3. مكون الملخص
-        const DashboardView = ({ dailyNeeds, consumed, remaining, profile }) => (
-            <div className="space-y-6 animate-fade-in">
-                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-lg">
-                    <h2 className="text-xl font-bold mb-6">ملخص اليوم</h2>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div className="bg-white/20 backdrop-blur-md rounded-2xl p-3">
-                            <span className="block text-emerald-100 text-xs mb-1">الهدف</span>
-                            <strong className="text-xl">{dailyNeeds.calories}</strong>
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    {/* نصيحة اليوم */}
+                    <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex gap-4 items-center">
+                        <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-2xl flex items-center justify-center text-xl shrink-0 shadow-inner">
+                            <i className="fa-solid fa-lightbulb fa-shake" style={{"--fa-animation-duration": "3s"}}></i>
                         </div>
-                        <div className="bg-white/20 backdrop-blur-md rounded-2xl p-3">
-                            <span className="block text-emerald-100 text-xs mb-1">استهلكت</span>
-                            <strong className="text-xl">{consumed.calories}</strong>
-                        </div>
-                        <div className="bg-white shadow-lg rounded-2xl p-3 text-emerald-600 transform scale-105">
-                            <span className="block text-xs mb-1 font-bold">المتبقي</span>
-                            <strong className="text-2xl">{remaining.calories}</strong>
+                        <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">إشراقة اليوم</span>
+                            <h4 className="font-bold text-sm text-gray-800 line-clamp-2">{tipOfTheDay.title}: {tipOfTheDay.desc}</h4>
                         </div>
                     </div>
-                </div>
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i className="fa-solid fa-bullseye text-emerald-500"></i> تفاصيل الماكروز
-                    </h3>
-                    <ProgressBar label="البروتين" consumed={consumed.protein} total={dailyNeeds.protein} colorClass="bg-blue-500" />
-                    <ProgressBar label="الكاربوهيدرات" consumed={consumed.carbs} total={dailyNeeds.carbs} colorClass="bg-yellow-500" />
-                    <ProgressBar label="الدهون" consumed={consumed.fats} total={dailyNeeds.fats} colorClass="bg-red-500" />
-                </div>
-            </div>
-        );
 
-        // 4. مكون الوجبات
-        const MealsView = ({ meals, newMeal, setNewMeal, handleAddMeal, deleteMeal, addQuickMeal }) => (
-            <div className="space-y-6 animate-fade-in">
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i className="fa-solid fa-plus text-emerald-500"></i> إضافة وجبة
-                    </h3>
-                    <form onSubmit={handleAddMeal} className="space-y-3">
-                        <input type="text" placeholder="اسم الوجبة" required className="w-full p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none" value={newMeal.name} onChange={e => setNewMeal({...newMeal, name: e.target.value})} />
-                        <div className="grid grid-cols-2 gap-3">
-                            <input type="number" placeholder="السعرات" required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" value={newMeal.calories} onChange={e => setNewMeal({...newMeal, calories: e.target.value})} />
-                            <input type="number" placeholder="بروتين" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" value={newMeal.protein} onChange={e => setNewMeal({...newMeal, protein: e.target.value})} />
-                            <input type="number" placeholder="كارب" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" value={newMeal.carbs} onChange={e => setNewMeal({...newMeal, carbs: e.target.value})} />
-                            <input type="number" placeholder="دهون" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500" value={newMeal.fats} onChange={e => setNewMeal({...newMeal, fats: e.target.value})} />
+                    <div className="bg-gray-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full opacity-30 bg-gradient-to-br from-emerald-500 to-transparent"></div>
+                        <h2 className="text-lg font-bold mb-5 relative z-10 text-emerald-400 flex justify-between items-center">
+                            <span>خارطة سعراتك</span>
+                            <i className="fa-solid fa-fire-flame-curved"></i>
+                        </h2>
+                        <div className="grid grid-cols-3 gap-3 text-center relative z-10">
+                            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                                <span className="block text-gray-400 text-[10px] mb-1">الهدف</span>
+                                <strong className="text-lg">{dailyNeeds.calories}</strong>
+                            </div>
+                            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                                <span className="block text-gray-400 text-[10px] mb-1">استهلكت</span>
+                                <strong className="text-lg">{consumed.calories}</strong>
+                            </div>
+                            <div className="bg-emerald-500 shadow-lg shadow-emerald-500/30 rounded-2xl p-3 text-white transform scale-105 border border-emerald-400">
+                                <span className="block text-[10px] mb-1 font-bold">المتبقي</span>
+                                <strong className="text-xl">{remaining.calories}</strong>
+                            </div>
                         </div>
-                        <button type="submit" className="w-full bg-emerald-100 text-emerald-700 font-bold py-3 rounded-xl">أضف الوجبة</button>
-                    </form>
-                    <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        <button type="button" onClick={() => addQuickMeal('تفاحة', 95, 0, 25, 0)} className="whitespace-nowrap px-4 py-2 bg-gray-50 border rounded-lg text-sm">🍎 تفاحة</button>
-                        <button type="button" onClick={() => addQuickMeal('صدر دجاج', 165, 31, 0, 3)} className="whitespace-nowrap px-4 py-2 bg-gray-50 border rounded-lg text-sm">🍗 دجاج</button>
+                    </div>
+
+                    <div className="glass-card rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-800 mb-5 flex items-center gap-2">
+                            <i className="fa-solid fa-chart-pie text-indigo-500"></i> تفصيل الماكروز الدقيق
+                        </h3>
+                        <ProgressBar label="البروتين (عضلات)" consumed={consumed.protein} total={dailyNeeds.protein} colorClass="bg-gradient-to-r from-blue-400 to-blue-600" />
+                        <ProgressBar label="الكارب (طاقة)" consumed={consumed.carbs} total={dailyNeeds.carbs} colorClass="bg-gradient-to-r from-yellow-400 to-yellow-600" />
+                        <ProgressBar label="الدهون (هرمونات)" consumed={consumed.fats} total={dailyNeeds.fats} colorClass="bg-gradient-to-r from-red-400 to-red-600" />
+                    </div>
+
+                    <div className="glass-card rounded-3xl p-5 shadow-sm border border-blue-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm">
+                                <i className="fa-solid fa-glass-water text-blue-500"></i> متتبع السوائل
+                            </h3>
+                            <p className="text-[10px] text-gray-500 mt-1">الهدف: 8 أكواب يومياً</p>
+                        </div>
+                        <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-full border border-gray-100">
+                            <button onClick={() => setWater(Math.max(0, water - 1))} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-600 shadow-sm"><i className="fa-solid fa-minus text-xs"></i></button>
+                            <span className="text-xl font-black text-blue-600 w-6 text-center">{water}</span>
+                            <button onClick={() => setWater(water + 1)} className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-md"><i className="fa-solid fa-plus text-xs"></i></button>
+                        </div>
                     </div>
                 </div>
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i className="fa-solid fa-utensils text-emerald-500"></i> وجبات اليوم
-                    </h3>
-                    {meals.length === 0 ? <p className="text-center text-gray-400 py-4">لا توجد وجبات</p> : (
-                        <ul className="space-y-3">
-                            {meals.map(meal => (
-                                <li key={meal.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <div>
-                                        <h4 className="font-bold">{meal.name}</h4>
-                                        <span className="text-xs text-emerald-600 font-medium">{meal.calories} سعرة</span>
+            );
+        };
+
+        const MealsView = ({ meals, newMeal, setNewMeal, handleAddMeal, deleteMeal, quickMeals, setQuickMeals, addQuickMeal }) => {
+            const [showCustomForm, setShowCustomForm] = useState(false);
+            const [customMeal, setCustomMeal] = useState({ name: '', cal: '', p: '', c: '', f: '', img: '' });
+            
+            const handleAddCustomMeal = (e) => {
+                e.preventDefault();
+                if(!customMeal.name || !customMeal.cal) return;
+                
+                // صورة افتراضية لو الرابط فارغ
+                const defaultImg = "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=150&q=80";
+                
+                const newQuick = {
+                    id: Date.now().toString(),
+                    name: customMeal.name,
+                    cal: Number(customMeal.cal),
+                    p: Number(customMeal.p || 0),
+                    c: Number(customMeal.c || 0),
+                    f: Number(customMeal.f || 0),
+                    img: customMeal.img || defaultImg
+                };
+                
+                setQuickMeals([newQuick, ...quickMeals]);
+                setShowCustomForm(false);
+                setCustomMeal({ name: '', cal: '', p: '', c: '', f: '', img: '' });
+            };
+
+            const deleteQuickMeal = (e, id) => {
+                e.stopPropagation(); // منع إضافة الوجبة عند الضغط على زر الحذف
+                setQuickMeals(quickMeals.filter(qm => qm.id !== id));
+            };
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    
+                    {/* وجباتي المفضلة (مع إمكانية الإضافة وتغيير الصور) */}
+                    <div className="glass-card rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                <i className="fa-solid fa-star text-yellow-500"></i> وجباتي السريعة
+                            </h3>
+                            <button onClick={() => setShowCustomForm(!showCustomForm)} className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-full shadow-md">
+                                {showCustomForm ? 'إلغاء' : '+ وجبة جديدة'}
+                            </button>
+                        </div>
+
+                        {/* نموذج إضافة وجبة خاصة بصورة */}
+                        {showCustomForm && (
+                            <form onSubmit={handleAddCustomMeal} className="mb-6 bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-300 animate-fade-in">
+                                <p className="text-xs text-gray-500 mb-3 font-bold"><i className="fa-solid fa-info-circle text-blue-400"></i> ابحث عن صورة بالنت، انسخ رابطها والصقه هنا:</p>
+                                <input type="text" placeholder="رابط الصورة (URL) - اختياري" className="w-full p-2.5 text-xs rounded-xl border border-gray-200 mb-2 outline-none" value={customMeal.img} onChange={e => setCustomMeal({...customMeal, img: e.target.value})} />
+                                <input type="text" placeholder="اسم الوجبة*" required className="w-full p-2.5 text-xs rounded-xl border border-gray-200 mb-2 outline-none" value={customMeal.name} onChange={e => setCustomMeal({...customMeal, name: e.target.value})} />
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    <input type="number" placeholder="السعرات*" required className="w-full p-2.5 text-xs rounded-xl border border-gray-200 outline-none" value={customMeal.cal} onChange={e => setCustomMeal({...customMeal, cal: e.target.value})} />
+                                    <input type="number" placeholder="بروتين" className="w-full p-2.5 text-xs rounded-xl border border-gray-200 outline-none" value={customMeal.p} onChange={e => setCustomMeal({...customMeal, p: e.target.value})} />
+                                    <input type="number" placeholder="كارب" className="w-full p-2.5 text-xs rounded-xl border border-gray-200 outline-none" value={customMeal.c} onChange={e => setCustomMeal({...customMeal, c: e.target.value})} />
+                                    <input type="number" placeholder="دهون" className="w-full p-2.5 text-xs rounded-xl border border-gray-200 outline-none" value={customMeal.f} onChange={e => setCustomMeal({...customMeal, f: e.target.value})} />
+                                </div>
+                                <button type="submit" className="w-full bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl shadow">حفظ في مفضلتي</button>
+                            </form>
+                        )}
+
+                        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                            {quickMeals.map((qm) => (
+                                <div key={qm.id} className="relative shrink-0 w-28 bg-white border border-gray-200 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all">
+                                    <button onClick={(e) => deleteQuickMeal(e, qm.id)} className="absolute top-1 left-1 w-6 h-6 bg-white/80 backdrop-blur rounded-full text-red-500 flex items-center justify-center shadow z-10 text-[10px]"><i className="fa-solid fa-times"></i></button>
+                                    <div onClick={() => addQuickMeal(qm.name, qm.cal, qm.p, qm.c, qm.f)}>
+                                        {/* onError لو الرابط خطأ يحط صورة افتراضية */}
+                                        <img src={qm.img} onError={(e)=>e.target.src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=150&q=80"} className="w-full h-20 object-cover" />
+                                        <div className="p-2 text-center bg-white">
+                                            <p className="text-[10px] font-bold text-gray-800 line-clamp-1">{qm.name}</p>
+                                            <p className="text-[10px] font-black text-emerald-600 mt-1">{qm.cal} kcal</p>
+                                        </div>
                                     </div>
-                                    <button type="button" onClick={() => deleteMeal(meal.id)} className="text-red-400 p-2 bg-red-50 rounded-lg"><i className="fa-solid fa-trash"></i></button>
-                                </li>
+                                </div>
                             ))}
-                        </ul>
-                    )}
-                </div>
-            </div>
-        );
+                        </div>
+                    </div>
 
-        // 5. مكون النصائح
-        const TipsView = () => (
-            <div className="space-y-6 animate-fade-in">
-                <h2 className="text-2xl font-bold text-gray-800 px-2">نصائح ومعلومات 💡</h2>
-                <div className="bg-white rounded-3xl overflow-hidden shadow-sm border">
-                    <img src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80" className="w-full h-48 object-cover" />
-                    <div className="p-6">
-                        <h3 className="font-bold text-lg mb-2">أهمية شرب الماء</h3>
-                        <p className="text-gray-600 text-sm">شرب الماء يعزز الأيض وحرق الدهون ويقلل الجوع.</p>
+                    {/* تدوين يدوي */}
+                    <div className="glass-card rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i className="fa-solid fa-pen-nib text-indigo-500"></i> تدوين وجبة حرة
+                        </h3>
+                        <form onSubmit={handleAddMeal} className="space-y-3">
+                            <input type="text" placeholder="اسم الوجبة" required className="w-full p-3 text-sm rounded-xl border border-gray-200 bg-gray-50 outline-none focus:bg-white focus:border-emerald-500" value={newMeal.name} onChange={e => setNewMeal({...newMeal, name: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <input type="number" placeholder="السعرات" required className="w-full p-3 text-sm rounded-xl border border-gray-200 bg-gray-50 outline-none" value={newMeal.calories} onChange={e => setNewMeal({...newMeal, calories: e.target.value})} />
+                                <input type="number" placeholder="بروتين" className="w-full p-3 text-sm rounded-xl border border-gray-200 bg-gray-50 outline-none" value={newMeal.protein} onChange={e => setNewMeal({...newMeal, protein: e.target.value})} />
+                                <input type="number" placeholder="كارب" className="w-full p-3 text-sm rounded-xl border border-gray-200 bg-gray-50 outline-none" value={newMeal.carbs} onChange={e => setNewMeal({...newMeal, carbs: e.target.value})} />
+                                <input type="number" placeholder="دهون" className="w-full p-3 text-sm rounded-xl border border-gray-200 bg-gray-50 outline-none" value={newMeal.fats} onChange={e => setNewMeal({...newMeal, fats: e.target.value})} />
+                            </div>
+                            <button type="submit" className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl shadow-lg">أضف للسجل اليومي</button>
+                        </form>
+                    </div>
+                    
+                    {/* سجل اليوم */}
+                    <div className="glass-card rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                <i className="fa-solid fa-list-check text-emerald-500"></i> ما أكلته اليوم
+                            </h3>
+                            <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg">{meals.length} وجبات</span>
+                        </div>
+                        
+                        {meals.length === 0 ? <p className="text-center text-gray-400 py-8 text-xs bg-gray-50 rounded-2xl border border-dashed border-gray-200">لم تسجل شيئاً. ابدأ بإضافة وجباتك!</p> : (
+                            <ul className="space-y-3">
+                                {meals.map((meal) => (
+                                    <li key={meal.id} className="flex justify-between items-center p-3 bg-white rounded-2xl border border-gray-100 shadow-sm animate-fade-in">
+                                        <div>
+                                            <h4 className="font-bold text-xs text-gray-800 mb-1">{meal.name}</h4>
+                                            <div className="text-[10px] text-gray-500 flex gap-2">
+                                                <span className="text-emerald-600 font-bold">{meal.calories} kcal</span>
+                                                <span>ب:{meal.protein}</span><span>ك:{meal.carbs}</span><span>د:{meal.fats}</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" onClick={() => deleteMeal(meal.id)} className="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
-                <div className="bg-white rounded-3xl overflow-hidden shadow-sm border mb-8">
-                    <div className="p-6">
-                        <h3 className="font-bold text-lg mb-2 text-emerald-600">لا تحرم نفسك!</h3>
-                        <p className="text-gray-600 text-sm">الدايت الناجح هو المرونة، تناول ما تحب ضمن سعراتك.</p>
-                    </div>
-                </div>
-            </div>
-        );
+            );
+        };
 
-        // 6. التطبيق الرئيسي
+        const LearnView = () => {
+            // ترتيب عشوائي للمقالات كل يوم لتبدو متجددة
+            const dailyArticles = useMemo(() => {
+                const seed = new Date().getDate();
+                return [...ALL_ARTICLES].sort(() => 0.5 - (seed % 2 === 0 ? Math.random() : -Math.random()));
+            }, []);
+
+            return (
+                <div className="space-y-4 animate-fade-in pb-4">
+                    <div className="px-2 mb-4 bg-gray-900 p-6 rounded-3xl text-white shadow-xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500 rounded-full blur-3xl opacity-20"></div>
+                        <h2 className="text-xl font-bold relative z-10"><i className="fa-solid fa-book-open-reader text-emerald-400"></i> الوعي الصحي</h2>
+                        <p className="text-xs text-gray-400 mt-2 relative z-10">تتحدث هذه المقالات تلقائياً لتقديم أفضل المعلومات العلمية لك.</p>
+                    </div>
+                    
+                    {dailyArticles.map((article, index) => (
+                        <div key={index} className="glass-card rounded-3xl overflow-hidden shadow-sm flex flex-col">
+                            <div className="relative h-32 w-full">
+                                <img src={article.image} className="w-full h-full object-cover" />
+                                <div className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-emerald-600 shadow-md">
+                                    <i className={`fa-solid ${article.icon} text-xs`}></i>
+                                </div>
+                            </div>
+                            <div className="p-4">
+                                <h3 className="font-bold text-sm mb-1 text-gray-800">{article.title}</h3>
+                                <p className="text-gray-500 text-xs leading-relaxed text-justify">{article.desc}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- التطبيق الرئيسي ---
         function App() {
-            const [activeTab, setActiveTab] = useState('profile');
-            const [profile, setProfile] = useState({
+            // استخدام LocalStorage لحفظ البيانات بدلاً من useState العادي
+            const [activeTab, setActiveTab] = useLocalStorage('s7ty_activeTab', 'profile');
+            const [water, setWater] = useLocalStorage('s7ty_water', 0);
+            const [profile, setProfile] = useLocalStorage('s7ty_profile', {
                 gender: 'male', age: '25', weight: '70', height: '170', activity: '1.375', goal: 'maintain', isSetup: false
             });
-            const [meals, setMeals] = useState([]);
+            const [meals, setMeals] = useLocalStorage('s7ty_meals', []);
+            const [quickMeals, setQuickMeals] = useLocalStorage('s7ty_quickMeals', DEFAULT_QUICK_MEALS);
+            
             const [newMeal, setNewMeal] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+
+            // إعادة تصفير الماء والوجبات إذا بدأ يوم جديد (نظام متقدم لحفظ السجل اليومي)
+            useEffect(() => {
+                const lastLoginDate = window.localStorage.getItem('s7ty_lastLoginDate');
+                const today = new Date().toDateString();
+                if (lastLoginDate !== today) {
+                    // يوم جديد! صفر الوجبات والماء
+                    setMeals([]);
+                    setWater(0);
+                    window.localStorage.setItem('s7ty_lastLoginDate', today);
+                }
+            }, []);
 
             const dailyNeeds = useMemo(() => {
                 if (!profile.isSetup) return { calories: 0, protein: 0, carbs: 0, fats: 0 };
@@ -240,7 +368,7 @@
             }, [meals]);
 
             const remaining = {
-                calories: Math.max(0, dailyNeeds.calories - consumed.calories),
+                calories: dailyNeeds.calories - consumed.calories, 
                 protein: Math.max(0, dailyNeeds.protein - consumed.protein),
                 carbs: Math.max(0, dailyNeeds.carbs - consumed.carbs),
                 fats: Math.max(0, dailyNeeds.fats - consumed.fats),
@@ -255,66 +383,116 @@
             const handleAddMeal = (e) => {
                 e.preventDefault();
                 if (!newMeal.name || !newMeal.calories) return;
-                setMeals([{ ...newMeal, id: Date.now(), protein: newMeal.protein || 0, carbs: newMeal.carbs || 0, fats: newMeal.fats || 0 }, ...meals]);
+                setMeals([{ ...newMeal, id: Date.now().toString(), protein: newMeal.protein || 0, carbs: newMeal.carbs || 0, fats: newMeal.fats || 0 }, ...meals]);
                 setNewMeal({ name: '', calories: '', protein: '', carbs: '', fats: '' });
             };
 
             const deleteMeal = (id) => setMeals(meals.filter(m => m.id !== id));
-            const addQuickMeal = (name, cal, p, c, f) => setMeals([{ id: Date.now(), name, calories: cal, protein: p, carbs: c, fats: f }, ...meals]);
+            
+            const addQuickMeal = (name, cal, p, c, f) => setMeals([{ id: Date.now().toString(), name, calories: cal, protein: p, carbs: c, fats: f }, ...meals]);
 
             return (
-                <div className="min-h-screen pb-24">
-                    <header className="bg-white pt-6 pb-4 px-6 shadow-sm sticky top-0 z-20">
+                <div className="min-h-screen pb-28">
+                    <header className="glass-card pt-6 pb-4 px-6 sticky top-0 z-30 shadow-sm border-b border-gray-100">
                         <div className="flex justify-between items-center max-w-lg mx-auto">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-emerald-500 p-2 rounded-xl text-white">
-                                    <i className="fa-solid fa-heart-pulse"></i>
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gray-900 w-10 h-10 rounded-xl text-emerald-400 flex justify-center items-center text-lg shadow-md">
+                                    <i className="fa-solid fa-infinity"></i>
                                 </div>
-                                <h1 className="text-2xl font-black text-emerald-800">تطبيقي الصحي</h1>
+                                <div>
+                                    <h1 className="text-lg font-black text-gray-900 leading-tight tracking-tight">صحتي <span className="text-emerald-500 font-bold">PRO</span></h1>
+                                </div>
                             </div>
                             {profile.isSetup && (
-                                <button onClick={() => setActiveTab('profile')} className="w-10 h-10 bg-gray-100 rounded-full text-gray-600">
-                                    <i className="fa-solid fa-user"></i>
+                                <button onClick={() => setActiveTab('profile')} className="w-9 h-9 bg-gray-100 rounded-full text-gray-600 hover:text-emerald-600 transition-colors flex justify-center items-center">
+                                    <i className="fa-solid fa-gear text-sm"></i>
                                 </button>
                             )}
                         </div>
                     </header>
 
-                    <main className="p-4 max-w-lg mx-auto mt-4">
+                    <main className="p-4 max-w-lg mx-auto mt-2">
                         {!profile.isSetup ? (
-                            <ProfileView profile={profile} setProfile={setProfile} onSubmit={handleProfileSubmit} />
+                            <div className="glass-card rounded-3xl p-6 shadow-sm border border-gray-100 animate-fade-in">
+                                <div className="text-center mb-6">
+                                    <div className="w-20 h-20 bg-gray-900 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+                                        <i className="fa-solid fa-fingerprint"></i>
+                                    </div>
+                                    <h2 className="text-xl font-black text-gray-800">بياناتك الشخصية</h2>
+                                    <p className="text-gray-500 text-xs mt-1">يتم حفظ بياناتك في جهازك للخصوصية</p>
+                                </div>
+                                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">الجنس</label>
+                                            <select className="w-full p-3 text-sm rounded-xl border border-gray-200 outline-none bg-gray-50" value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}>
+                                                <option value="male">ذكر</option>
+                                                <option value="female">أنثى</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">العمر</label>
+                                            <input type="number" required className="w-full p-3 text-sm rounded-xl border border-gray-200 outline-none bg-gray-50" value={profile.age} onChange={e => setProfile({...profile, age: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">الوزن (كجم)</label>
+                                            <input type="number" required className="w-full p-3 text-sm rounded-xl border border-gray-200 outline-none bg-gray-50" value={profile.weight} onChange={e => setProfile({...profile, weight: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1">الطول (سم)</label>
+                                            <input type="number" required className="w-full p-3 text-sm rounded-xl border border-gray-200 outline-none bg-gray-50" value={profile.height} onChange={e => setProfile({...profile, height: e.target.value})} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">مستوى النشاط</label>
+                                        <select className="w-full p-3 text-sm rounded-xl border border-gray-200 outline-none bg-gray-50" value={profile.activity} onChange={e => setProfile({...profile, activity: e.target.value})}>
+                                            <option value="1.2">خامل (عمل مكتبي)</option>
+                                            <option value="1.375">نشاط خفيف (1-3 أيام)</option>
+                                            <option value="1.55">نشاط متوسط (3-5 أيام)</option>
+                                            <option value="1.725">نشاط رياضي عالي</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1">الهدف المرجو</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['lose', 'maintain', 'gain'].map(g => (
+                                                <button type="button" key={g} onClick={() => setProfile({...profile, goal: g})} className={`py-3 rounded-xl text-xs font-bold transition-all ${profile.goal === g ? 'bg-emerald-500 text-white shadow-md' : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+                                                    {g === 'lose' ? 'خسارة دهون' : g === 'maintain' ? 'محافظة' : 'بناء عضل'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full mt-6 bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
+                                        ابدأ التتبع <i className="fa-solid fa-arrow-left text-sm"></i>
+                                    </button>
+                                </form>
+                            </div>
                         ) : (
                             <>
-                                <div className={activeTab === 'profile' ? 'block' : 'hidden'}>
-                                    <ProfileView profile={profile} setProfile={setProfile} onSubmit={handleProfileSubmit} />
-                                </div>
-                                <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
-                                    <DashboardView dailyNeeds={dailyNeeds} consumed={consumed} remaining={remaining} profile={profile} />
-                                </div>
-                                <div className={activeTab === 'meals' ? 'block' : 'hidden'}>
-                                    <MealsView meals={meals} newMeal={newMeal} setNewMeal={setNewMeal} handleAddMeal={handleAddMeal} deleteMeal={deleteMeal} addQuickMeal={addQuickMeal} />
-                                </div>
-                                <div className={activeTab === 'tips' ? 'block' : 'hidden'}>
-                                    <TipsView />
-                                </div>
+                                {activeTab === 'profile' && <div className="animate-fade-in"><button onClick={()=>setActiveTab('dashboard')} className="mb-4 text-emerald-600 text-sm font-bold"><i className="fa-solid fa-arrow-right"></i> عودة</button><ProfileView profile={profile} setProfile={setProfile} onSubmit={handleProfileSubmit} /></div>}
+                                {activeTab === 'dashboard' && <DashboardView dailyNeeds={dailyNeeds} consumed={consumed} remaining={remaining} profile={profile} water={water} setWater={setWater} />}
+                                {activeTab === 'meals' && <MealsView meals={meals} newMeal={newMeal} setNewMeal={setNewMeal} handleAddMeal={handleAddMeal} deleteMeal={deleteMeal} quickMeals={quickMeals} setQuickMeals={setQuickMeals} addQuickMeal={addQuickMeal} />}
+                                {activeTab === 'learn' && <LearnView />}
                             </>
                         )}
                     </main>
 
                     {profile.isSetup && (
-                        <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 pb-safe pt-2 px-6 z-30">
-                            <div className="max-w-lg mx-auto flex justify-between items-center pb-2">
-                                <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-2 ${activeTab === 'dashboard' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                    <i className="fa-solid fa-home text-xl mb-1"></i>
+                        <nav className="fixed bottom-0 w-full glass-card border-t border-gray-200 pb-safe pt-2 px-4 z-40">
+                            <div className="max-w-lg mx-auto flex justify-around items-center pb-2">
+                                <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-2 w-16 transition-all ${activeTab === 'dashboard' ? 'text-gray-900 scale-110' : 'text-gray-400'}`}>
+                                    <i className="fa-solid fa-house text-xl mb-1"></i>
                                     <span className="text-[10px] font-bold">الرئيسية</span>
                                 </button>
-                                <button onClick={() => setActiveTab('meals')} className={`flex flex-col items-center p-2 ${activeTab === 'meals' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                    <i className="fa-solid fa-utensils text-xl mb-1"></i>
-                                    <span className="text-[10px] font-bold">الوجبات</span>
+                                <button onClick={() => setActiveTab('meals')} className={`flex flex-col items-center p-2 w-16 transition-all ${activeTab === 'meals' ? 'text-gray-900 scale-110' : 'text-gray-400'}`}>
+                                    <div className="relative">
+                                        <i className="fa-solid fa-plus-circle text-2xl mb-1 text-emerald-500 bg-white rounded-full"></i>
+                                    </div>
+                                    <span className="text-[10px] font-bold mt-1">تدوين</span>
                                 </button>
-                                <button onClick={() => setActiveTab('tips')} className={`flex flex-col items-center p-2 ${activeTab === 'tips' ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                    <i className="fa-solid fa-lightbulb text-xl mb-1"></i>
-                                    <span className="text-[10px] font-bold">نصائح</span>
+                                <button onClick={() => setActiveTab('learn')} className={`flex flex-col items-center p-2 w-16 transition-all ${activeTab === 'learn' ? 'text-gray-900 scale-110' : 'text-gray-400'}`}>
+                                    <i className="fa-solid fa-book-medical text-xl mb-1"></i>
+                                    <span className="text-[10px] font-bold">المكتبة</span>
                                 </button>
                             </div>
                         </nav>
